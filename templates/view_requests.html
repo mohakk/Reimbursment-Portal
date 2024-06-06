@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Reimbursement Requests</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background-color: #f5f5f5; /* Light gray background */
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+    }
+    th {
+      background-color: #e0e0e0; /* Light gray header background */
+    }
+    select, input[type="text"] {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      background-color: #00bcd4; /* Teal color for button */
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+  </style>
+  <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</head>
+<body>
+  <h1>Pending Reimbursement Requests</h1>
+  <table>
+    <tr>
+      <th>Expense Type</th>
+      <th>Amount</th>
+      <th>Date</th>
+      <th>Action</th>
+    </tr>
+    {% for request in requests %}
+    <tr>
+      <td>{{ request.expense_type }}</td>
+      <td>{{ request.amount }}</td>
+      <td>{{ request.date }}</td>
+      <td>
+        <form action="{{ url_for('update_request') }}" method="post">
+          <input type="hidden" name="id" value="{{ request.id }}">
+          <select name="status">
+            <option value="approved">Approve</option>
+            <option value="rejected">Reject</option>
+            <option value="on hold">Hold</option>
+          </select>
+          <input type="text" name="comment" placeholder="Add comment">
+          <button type="submit">Submit</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table><br><br>
+  <a href="{{ url_for('manager_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>

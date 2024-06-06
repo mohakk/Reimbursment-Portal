@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Users</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: sans-serif;
+      background-color: #f5f5f5; /* Light gray background */
+    }
+    table {
+      border-collapse: collapse; /* Removes borders between table cells */
+      width: 100%; /* Makes table fill container */
+    }
+    th, td {
+      text-align: left; /* Align content left */
+      padding: 0.5rem; /* Add padding for better spacing */
+      border: 1px solid #ddd; /* Light gray borders */
+    }
+    th {
+      background-color: #e0e0e0; /* Light gray header background */
+    }
+    h1 {
+      margin-bottom: 1rem; /* Add some space below the heading */
+    }
+    a {
+      text-decoration: none; /* Remove underline from link */
+      color: #00bcd4; /* Teal color for link */
+    }
+  </style>
+</head>
+<body>
+  <h1>Users</h1>
+  <table border="1">
+    <tr>
+      <th>Email</th>
+      <th>Password</th>
+      <th>Department</th>
+      <th>Role</th>
+    </tr>
+    {% for user in users %}
+    <tr>
+      <td>{{ user.email }}</td>
+      <td>{{ user.password }}</td>
+      <td>{{ user.department_name }}</td>
+      <td>{{ user.role }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <br><br>
+  <a href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
