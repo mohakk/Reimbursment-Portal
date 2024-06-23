@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import mysql.connector
 import re
+import logging
+
+logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -20,22 +23,13 @@ def get_db_connection():
 def index():
     return render_template('login.html')
 
-def log_action(user_email, action, details):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO audit_log (user_email, action, details)
-        VALUES (%s, %s, %s)
-    """, (user_email, action, details))
-    conn.commit()
-    cursor.close()
-    conn.close()
-
 @app.route('/login', methods=['POST'])
 def login():
     email = request.form['email']
     password = request.form['password']
     
+    logging.info(f"Login attempt for user: {email}")
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM users WHERE email = %s AND password = %s", (email, password))
@@ -43,11 +37,11 @@ def login():
     cursor.close()
     conn.close()
 
-    log_action(email, 'Login', '-')
     
     if user:
         session['email'] = user['email']
         session['role'] = user['role']
+        logging.info(f"Login successful for user: {email}") 
         if user['role'] == 'manager':
             return redirect(url_for('manager_dashboard'))
         elif user['role'] == 'employee':
@@ -55,6 +49,7 @@ def login():
         elif user['role'] == 'admin':
             return redirect(url_for('admin_dashboard'))
     else:
+        logging.warning(f"Login failed for user: {email}")
         return "Invalid email or password"
 
 @app.route('/logout')
@@ -63,7 +58,7 @@ def logout():
     session.pop('email', None)
     session.pop('role', None)
 
-    log_action(email, 'Logout', '-')
+    logging.info(f"User {email} logged out")
 
     return render_template('login.html')
 
@@ -104,16 +99,19 @@ def view_users():
 @app.route('/add_user', methods=['GET', 'POST'])
 def add_user():
     if request.method == 'POST':
+        admin_email = session['email']
         email = request.form['email']
         password = request.form['password']
         department_name = request.form['department_name']
         role = request.form['role']
 
         if not re.match(r".*@example\.com$", email):
+         logging.warning(f"User addition by {admin_email} failed due to inappropriate credentials")
          flash('Email must end with @example.com', 'error')
          return redirect(url_for('add_user'))
 
-        
+        logging.info(f"{admin_email} added a {role} with email:{email} to the {department_name} department")
+
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -123,10 +121,6 @@ def add_user():
         conn.commit()
         cursor.close()
         conn.close()
-
-        
-        admin_email = session['email']
-        log_action(admin_email, 'Add User', f'User has added {email} of {department_name}')
 
         return redirect(url_for('view_users'))
     
@@ -142,8 +136,11 @@ def add_user():
 @app.route('/delete_user', methods=['GET', 'POST'])
 def delete_user():
     if request.method == 'POST':
+        admin_email = session['email']
         email = request.form['email']
         
+        logging.info(f"{admin_email} deleted {email}")
+
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -153,13 +150,9 @@ def delete_user():
         conn.commit()
         cursor.close()
         conn.close()
-
-        admin_email = session['email']
-        log_action(admin_email, 'Delete User', f'User has deleted the user with the email id {email}')
         
         return redirect(url_for('delete_user'))
     
-        
 
     return render_template('delete_user.html')
 
@@ -178,8 +171,11 @@ def view_departments():
 @app.route('/add_department', methods=['GET', 'POST'])
 def add_department():
     if request.method == 'POST':
+        admin_email = session['email']
         department_name = request.form['department_name']
         
+        logging.info(f"{admin_email} added {department_name} department")
+
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -190,18 +186,17 @@ def add_department():
         cursor.close()
         conn.close()
 
-        admin_email = session['email']
-        log_action(admin_email, 'Add Department', f'User has added new department i.e. {department_name}')
-
         return redirect(url_for('add_department'))
-    
     
     return render_template('add_department.html')
 
 @app.route('/delete_department', methods=['GET', 'POST'])
 def delete_department():
     if request.method == 'POST':
+        admin_email = session['email']
         department = request.form['name']
+
+        logging.info(f"{admin_email} deleted {department} department")
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -213,8 +208,6 @@ def delete_department():
         cursor.close()
         conn.close()
 
-        admin_email = session['email']
-        log_action(admin_email, 'Add Department', f'User has deleted {department} department')
         return redirect(url_for('delete_department'))
     
 
@@ -251,9 +244,12 @@ def view_requests():
 
 @app.route('/update_request', methods=['POST'])
 def update_request():
+    manager_email = session['email']
     req_id = request.form['id']
     status = request.form['status']
     comment = request.form['comment']
+
+    logging.info(f"{manager_email} {status} reimbursement request with id: {req_id}")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -265,9 +261,6 @@ def update_request():
     conn.commit()
     cursor.close()
     conn.close()
-    
-    email = session['email']
-    log_action(email, 'Request Updated', f'User has changed the status of reumbursement request to {status} with a comment:{comment}')
 
     return redirect(url_for('view_requests'))
 
@@ -293,12 +286,12 @@ def view_processed_requests():
 
 
 # Employee Funnctionalities----------------------------------------------
-
 @app.route('/claim_reimbursement_form')
 def claim_reimbursement_form():
     if 'email' not in session:
         return redirect(url_for('login'))
     return render_template('claim_reimbursement_form.html')
+    
 
 @app.route('/claim_reimbursement', methods=['POST'])
 def claim_reimbursement():
@@ -310,6 +303,8 @@ def claim_reimbursement():
     amount = request.form['amount']
     date = request.form['date']
     
+    logging.info(f"{email} has claimed a reimbursement request")
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -321,9 +316,6 @@ def claim_reimbursement():
     cursor.close()
     conn.close()
 
-    email = session['email']
-    log_action(email, 'Reimbursement Request Raised', f'User has raised a reimbursement request of {amount} for {expense_type} performed on {date}')
-    
     return render_template('claim_confirmation.html')
 
 
